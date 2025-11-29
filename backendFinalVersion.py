@@ -114,7 +114,9 @@ class Scan:
                 sys_descr = sys_descr if "Virtual" in sys_descr else "Dedicated Server"
             if ip == "192.168.20.30": category = "Switches"; sys_descr = "Switch"
             if ip == "192.168.32.10": category = "Routers"; sys_descr = "Router"
-
+            if ip in ["192.168.20.2","192.168.20.3","192.168.20.4"]:
+                category="PCs"
+                sys_descr="PCs"
 
             device_name = f"{category}{self.counters.get(category, 1)}"
             if category in self.counters: self.counters[category] += 1

@@ -85,7 +85,6 @@ def configure_dhcp_exclude_task(**kwargs):
     start_ip = kwargs.get('start_ip')
     end_ip = kwargs.get('end_ip')
     
-    # إذا كان عنوان واحد فقط، نرسله وحده، وإذا نطاق نرسل الاثنين
     cmd = f'ip dhcp excluded-address {start_ip}'
     if end_ip and end_ip != start_ip:
         cmd += f' {end_ip}'
@@ -100,15 +99,13 @@ def configure_dhcp_reservation_task(**kwargs):
     device = kwargs.get('device')
     reserved_ip = kwargs.get('reserved_ip')
     mac_address = kwargs.get('mac_address')
-    # اسم البول للحجز الثابت لتمييزه
+    
     host_pool_name = f"STATIC_{reserved_ip.replace('.', '_')}"
     
-    # تحويل الماك أدرس لصيغة Cisco (xxxx.xxxx.xxxx) إذا لزم الأمر
-    # هنا نفترض أن المستخدم سيدخله أو سيتم معالجته لاحقاً، سنمرره كما هو للأمر
     
     config_commands = [
         f'ip dhcp pool {host_pool_name}',
-        f'host {reserved_ip} 255.255.255.0', # افتراض القناع /24 للحجز الفردي
+        f'host {reserved_ip} 255.255.255.0', 
         f'hardware-address {mac_address} ethernet',
         'exit'
     ]

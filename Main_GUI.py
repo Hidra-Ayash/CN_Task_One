@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import threading
-# import backendFinalVersion
+import backendFinalVersion
 
 
 class NetworkApp:
@@ -9,7 +9,7 @@ class NetworkApp:
         self.root = root
         self.last_scan_results = {}
 
-        # بيانات الدخول
+        # Login Data
         self.SSH_USER = "admin"
         self.SSH_PASS = "cisco123"
         self.SSH_SECRET = "cisco"
@@ -17,7 +17,7 @@ class NetworkApp:
         self.setup_gui()
 
     # ---------------------------------------------------------
-    # GUI SETUP (IMPROVED PROFESSIONAL LAYOUT)
+    # GUI SETUP 
     # ---------------------------------------------------------
     def setup_gui(self):
         self.root.title("Network Management - GNS3 Edition")
@@ -61,7 +61,7 @@ class NetworkApp:
         self.network_entry = tk.Entry(scan_frame, width=45, font=('Arial', 11))
         self.network_entry.grid(row=0, column=1, padx=5)
         self.network_entry.insert(
-            0, "192.168.20.0/24, 192.168.31.0/24 , 192.168.32.0/24"
+            0, "192.168.32.0/24,192.168.20.0/24, 192.168.31.0/24 "
         )
 
         tk.Button(
@@ -134,7 +134,7 @@ class NetworkApp:
         self.output_text.config(state=tk.DISABLED)
 
 # ---------------------------------------------------------
-    # SCAN NETWORK (MODIFIED)
+    # SCAN NETWORK 
     # ---------------------------------------------------------
     def start_scan_thread(self):
         target_networks = [
@@ -164,12 +164,10 @@ class NetworkApp:
             self.log("-" * 60)
             for category, devices in results.items():
                 if devices:
-                    # ** التعديل: إظهار تفاصيل الأجهزة الشبكية وPCs فقط **
                     if category not in ["Others"]: 
                         self.log(f"[{category}]: {len(devices)} found.")
                         for dev in devices:
                             self.log(f" - IP: {dev['ip']} | {dev['descr']}")
-                    # إظهار ملخص فقط للأجهزة الأخرى (Others)
                     elif category == "Others":
                         self.log(f"[Others]: {len(devices)} found (Details Hidden).")
             self.log("-" * 60)
@@ -194,6 +192,34 @@ class NetworkApp:
 
     def run_ip_helper(self, target_ip):
         try:
+        # جمع كل الـ IPs المسموح فيها (راوترات + سويتشات)
+            valid_targets = []
+            for dev in self.last_scan_results.get("Routers", []) + self.last_scan_results.get("Switches", []):
+              valid_targets.append(dev['ip'])
+    
+            if target_ip not in valid_targets:
+                warn_win = tk.Toplevel(self.root)
+                warn_win.title("⚠️ IP Helper Warning")
+                warn_win.geometry("400x200")
+                warn_win.configure(bg="#fff3cd")
+    
+                tk.Label(
+                    warn_win,
+                    text=f"❌This IP {target_ip} NOT A ROUTER, use The IP OF Router",
+                    font=("Arial", 12, "bold"),
+                    bg="#fff3cd", fg="#721c24",
+                    wraplength=350, justify="center"
+                ).pack(expand=True, pady=40)
+
+                tk.Button(
+                    warn_win, text="Close",
+                   font=("Arial", 11, "bold"),
+                    bg="#f5c6cb", fg="black",
+                    command=warn_win.destroy
+                ).pack(pady=10)
+
+                return
+
             logs = backendFinalVersion.run_ip_helper_logic(
                 target_ip,
                 self.last_scan_results,
@@ -201,12 +227,13 @@ class NetworkApp:
             )
             for msg in logs:
                 self.log(msg)
-
+    
         except Exception as e:
             self.log(f"Config Error: {e}")
 
+
     # ---------------------------------------------------------
-    # DHCP WINDOW (same logic – but GUI improved)
+    # DHCP WINDOW 
     # ---------------------------------------------------------
     def open_dhcp_window(self):
         if not self.last_scan_results.get("Routers"):
