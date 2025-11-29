@@ -86,7 +86,7 @@ class Scan:
     # ==========================================================
     def _process_ip(self, ip, mac):
         result_container={}
-        t=threading(target=self._check_cisco_ios_threaded,args=(ip,mac,result_container))
+        t=threading.Thread(target=self._check_cisco_ios_threaded,args=(ip,mac,result_container))
         t.start()
         t.join(timeout=6)
         sys_descr = result_container.get("descr")
