@@ -87,6 +87,7 @@ def configure_dns_send_config(**kwargs):
     if not dns_server_ip:
         return {"status": "Failure", "output": "No DNS IP provided"}
     config_commands=[
+         f'ip domain-lookup',
         f'ip dns server',
         f'ip name-server {dns_server_ip}',
         'exit'
