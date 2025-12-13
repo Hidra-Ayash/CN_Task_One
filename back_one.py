@@ -78,7 +78,22 @@ def configure_dhcp_pool_task(**kwargs):
         'exit'
     ]
     return _connect_and_send_config(device, config_commands)
+#==================Add DNS Server Option==================#
+def configure_dns_send_config(**kwargs):
+    """Configure DNS Server"""
+    device=kwargs.get('device')
+    dns_server_ip = kwargs.get('dns_server') 
+    
+    if not dns_server_ip:
+        return {"status": "Failure", "output": "No DNS IP provided"}
+    config_commands=[
+        f'ip dns server',
+        f'ip name-server {dns_server_ip}',
+        'exit'
+    ]
+    return _connect_and_send_config(device,config_commands)
 
+#=========================================================#
 def configure_dhcp_exclude_task(**kwargs):
     """Excludes a range of IPs."""
     device = kwargs.get('device')
