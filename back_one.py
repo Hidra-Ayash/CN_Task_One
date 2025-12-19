@@ -127,3 +127,37 @@ def configure_dhcp_reservation_task(**kwargs):
     ]
     
     return _connect_and_send_config(device, config_commands)
+
+
+#=====================VPN Configuration=====================#
+def configure_vpn_task(**kwargs):
+    device = kwargs.get('device')
+    peer_ip = kwargs.get('peer_ip')
+    shared_key = kwargs.get('shared_key')
+    local_net = kwargs.get('local_net')
+    remote_net = kwargs.get('remote_net')
+
+    config_commands = [
+        'no crypto isakmp policy 10',
+        'crypto isakmp policy 10',
+        'encryption aes 128',
+        'hash sha',
+        'authentication pre-share',
+        'group 2',  # تعديل: group 2 بدل 10
+        'exit',
+        f'crypto isakmp key {shared_key} address {peer_ip}',
+        'crypto ipsec transform-set MY_TRANSFORM_SET esp-aes esp-sha-hmac',
+        'exit',
+        f'access-list 110 permit ip {local_net} 0.0.0.255 {remote_net} 0.0.0.255',
+        'crypto map MY_CRYPTO_MAP 10 ipsec-isakmp',  # تعديل: إزالة المسافة الزائدة
+        f'set peer {peer_ip}',
+        'set transform-set MY_TRANSFORM_SET',
+        'match address 110',
+        'exit',
+        'interface GigabitEthernet0/0',  # تعديل: IOSv يستخدم 0/0/0 عادةً
+        'crypto map MY_CRYPTO_MAP',
+        'exit',
+        'wr'
+    ]
+
+    return _connect_and_send_config(device,config_commands)
