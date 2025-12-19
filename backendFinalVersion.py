@@ -11,7 +11,8 @@ try:
         configure_dhcp_exclude_task, 
         configure_dhcp_reservation_task, 
         configure_dns_send_config, # تم التأكد من وجودها
-        Device
+        Device,
+        configure_vpn_task
     )
 except ImportError:
     # Mock classes if back_one is missing (لأغراض الاختبار فقط)
@@ -93,6 +94,8 @@ class Scan:
             if ip == "192.168.31.2": category = "Servers"; sys_descr = sys_descr if "Virtual" in sys_descr else "Dedicated Server"
             if ip == "192.168.20.30": category = "Switches"; sys_descr = "Switch"
             if ip == "192.168.32.10": category = "Routers"; sys_descr = "Router"
+            if ip == "192.168.32.20": category = "Routers"; sys_descr = "Router"
+            if ip == "192.168.30.2": category = "PCs"; sys_descr = "PCs"
             if ip in ["192.168.20.2","192.168.20.3","192.168.20.4"]: category="PCs"; sys_descr="PCs"
 
             device_name = f"{category}{self.counters.get(category, 1)}"
@@ -228,5 +231,24 @@ def run_dns_config_logic(router_ip, primary_dns, ssh_user, ssh_pass, ssh_secret 
         # logs.append(f" -> Output: {res['output']}") # Uncomment for verbose logging
     except Exception as e: 
         logs.append(f" -> Error: {e}")
+        
+    return logs
+
+
+def run_vpn_logic_bridge(r1_ip, r2_ip, lan1, lan2, key, user, password, secret):
+    logs = []
+    
+    # 1. إعداد الراوتر الأول
+    logs.append(f"Configuring Router 1 ({r1_ip})...")
+    dev1 = Device(host=r1_ip, username=user, password=password, device_type="cisco_ios", secret=secret)
+    configure_vpn_task(device=dev1, peer_ip=r2_ip, local_net=lan1, remote_net=lan2, shared_key=key)
+    logs.append(" -> Router 1 Success")
+ 
+    # 2. إعداد الراوتر الثاني (عكس الإعدادات)
+    logs.append(f"Configuring Router 2 ({r2_ip})...")
+    dev2 = Device(host=r2_ip, username=user, password=password, device_type="cisco_ios", secret=secret)
+    configure_vpn_task(device=dev2, peer_ip=r1_ip, local_net=lan2, remote_net=lan1, shared_key=key)
+    logs.append(" -> Router 2 Success")
+ 
         
     return logs
