@@ -1,0 +1,55 @@
+
+
+**************************************************************************
+* IOSv is strictly limited to use for evaluation, demonstration and IOS  *
+* education. IOSv is provided as-is and is not supported by Cisco's      *
+* Technical Advisory Center. Any use or disclosure, in whole or in part, *
+* of the IOSv Software or Documentation to any third party for any       *
+* purposes is expressly prohibited except as otherwise authorized by     *
+* Cisco in writing.                                                      *
+**************************************************************************
+R2#
+R2#terminal width 511
+R2#terminal length 0
+R2#
+R2#
+R2#
+R2#configure terminal
+Enter configuration commands, one per line.  End with CNTL/Z.
+R2(config)#
+R2(config)#no crypto isakmp policy 10
+Protection suite of priority 10 not found
+R2(config)#crypto isakmp policy 10
+R2(config-isakmp)#encryption aes 128
+R2(config-isakmp)#hash sha
+R2(config-isakmp)#authentication pre-share
+R2(config-isakmp)#group 2
+R2(config-isakmp)#exit
+R2(config)#crypto isakmp key 123 address 192.168.32.10
+R2(config)#crypto ipsec transform-set MY_TRANSFORM_SET esp-aes esp-sha-hmac
+R2(cfg-crypto-trans)#exit
+R2(config)#access-list 110 permit ip 192.168.30.0 0.0.0.255 192.168.20.0 0.0.0.255
+R2(config)#crypto map MY_CRYPTO_MAP 10 ipsec-isakmp
+% NOTE: This new crypto map will remain disabled until a peer
+	and a valid access list have been configured.
+R2(config-crypto-map)#set peer 192.168.32.10
+R2(config-crypto-map)#set transform-set MY_TRANSFORM_SET
+R2(config-crypto-map)#match address 110
+R2(config-crypto-map)#exit
+R2(config)#interface GigabitEthernet0/0
+R2(config-if)#crypto map MY_CRYPTO_MAP
+R2(config-if)#exit
+R2(config)#wr
+            ^
+% Invalid input detected at '^' marker.
+
+R2(config)#
+R2(config)#end
+R2#
+R2#
+R2#write memory
+Building configuration...
+
+  [OK]
+R2#
+R2#exit

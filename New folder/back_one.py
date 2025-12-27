@@ -78,29 +78,14 @@ def configure_dhcp_pool_task(**kwargs):
         'exit'
     ]
     return _connect_and_send_config(device, config_commands)
-#==================Add DNS Server Option==================#
-def configure_dns_send_config(**kwargs):
-    """Configure DNS Server"""
-    device=kwargs.get('device')
-    dns_server_ip = kwargs.get('dns_server') 
-    
-    if not dns_server_ip:
-        return {"status": "Failure", "output": "No DNS IP provided"}
-    config_commands=[
-         f'ip domain-lookup',
-        f'ip dns server',
-        f'ip name-server {dns_server_ip}',
-        'exit'
-    ]
-    return _connect_and_send_config(device,config_commands)
 
-#=========================================================#
 def configure_dhcp_exclude_task(**kwargs):
     """Excludes a range of IPs."""
     device = kwargs.get('device')
     start_ip = kwargs.get('start_ip')
     end_ip = kwargs.get('end_ip')
     
+    # إذا كان عنوان واحد فقط، نرسله وحده، وإذا نطاق نرسل الاثنين
     cmd = f'ip dhcp excluded-address {start_ip}'
     if end_ip and end_ip != start_ip:
         cmd += f' {end_ip}'
@@ -115,49 +100,17 @@ def configure_dhcp_reservation_task(**kwargs):
     device = kwargs.get('device')
     reserved_ip = kwargs.get('reserved_ip')
     mac_address = kwargs.get('mac_address')
-    
+    # اسم البول للحجز الثابت لتمييزه
     host_pool_name = f"STATIC_{reserved_ip.replace('.', '_')}"
     
+    # تحويل الماك أدرس لصيغة Cisco (xxxx.xxxx.xxxx) إذا لزم الأمر
+    # هنا نفترض أن المستخدم سيدخله أو سيتم معالجته لاحقاً، سنمرره كما هو للأمر
     
     config_commands = [
         f'ip dhcp pool {host_pool_name}',
-        f'host {reserved_ip} 255.255.255.0', 
+        f'host {reserved_ip} 255.255.255.0', # افتراض القناع /24 للحجز الفردي
         f'hardware-address {mac_address} ethernet',
         'exit'
     ]
     
     return _connect_and_send_config(device, config_commands)
-
-
-#=====================VPN Configuration=====================#
-def configure_vpn_task(**kwargs):
-    device = kwargs.get('device')
-    peer_ip = kwargs.get('peer_ip')
-    shared_key = kwargs.get('shared_key')
-    local_net = kwargs.get('local_net')
-    remote_net = kwargs.get('remote_net')
-
-    config_commands = [
-       
-        'crypto isakmp policy 10',
-        'encryption aes 128',
-        'hash sha',
-        'authentication pre-share',
-        'group 2',  
-        'exit',
-        f'crypto isakmp key {shared_key} address {peer_ip}',
-        'crypto ipsec transform-set MY_TRANSFORM_SET esp-aes esp-sha-hmac',
-        'exit',
-        f'access-list 110 permit ip {local_net} 0.0.0.255 {remote_net} 0.0.0.255',
-        'crypto map MY_CRYPTO_MAP 10 ipsec-isakmp',  
-        f'set peer {peer_ip}',
-        'set transform-set MY_TRANSFORM_SET',
-        'match address 110',
-        'exit',
-        'interface GigabitEthernet0/0',  
-        'crypto map MY_CRYPTO_MAP',
-        'exit',
-        'wr'
-    ]
-
-    return _connect_and_send_config(device,config_commands)
