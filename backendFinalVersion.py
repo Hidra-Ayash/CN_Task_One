@@ -252,3 +252,18 @@ def run_vpn_logic_bridge(r1_ip, r2_ip, lan1, lan2, key, user, password, secret):
  
         
     return logs
+
+
+# أضف هذه الدوال في نهاية ملف backendFinalVersion.py
+
+def run_vlan_logic(ip, user, password, secret, vlan_id, vlan_name, interface, mode):
+    from back_one import Device, configure_vlan_task
+    dev = Device(host=ip, username=user, password=password, device_type="cisco_ios", secret=secret)
+    res = configure_vlan_task(device=dev, vlan_id=vlan_id, vlan_name=vlan_name, interface=interface, mode=mode)
+    return res['status']
+
+def run_ospf_logic(ip, user, password, secret, pid, rid, net_ip, wild, area):
+    from back_one import Device, configure_ospf_task
+    dev = Device(host=ip, username=user, password=password, device_type="cisco_ios", secret=secret)
+    res = configure_ospf_task(device=dev, process_id=pid, router_id=rid, network_ip=net_ip, wildcard=wild, area=area)
+    return res['status']

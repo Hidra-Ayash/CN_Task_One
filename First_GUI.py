@@ -5,7 +5,8 @@ from tkinter import ttk
 import threading
 from PIL import Image, ImageTk 
 import sys
-import VPN_GUI  # استيراد ملف الواجهة المنفصل
+import VPN_GUI  # استيراد ملف VPN
+import VLAN_Routing  # الإضافة الجديدة: استيراد ملف الأتمتة الشاملة
 
 # محاولة استيراد الملفات الأخرى
 try:
@@ -40,11 +41,14 @@ def safe_load_image(path):
         return None
 
 # ---------------------------------------------------------
-# دالة تشغيل واجهة VPN (الربط الجديد)
+# دالة تشغيل الواجهات الجديدة
 # ---------------------------------------------------------
 def launch_vpn_interface():
-    # استدعاء دالة فتح نافذة VPN من الملف المنفصل
     VPN_GUI.open_vpn_window(welcome_root)
+
+def launch_advanced_automation():
+    # تشغيل واجهة VLAN & OSPF الديناميكية
+    VLAN_Routing.open_automation_window(welcome_root)
 
 # ---------------------------------------------------------
 # DNS Interface Window
@@ -73,7 +77,6 @@ def open_dns_interface_window():
                                         padx=40, pady=40, highlightthickness=2)
     network_config_frame.pack(fill="x", padx=100, pady=20)
 
-    # الحقول (Router & DNS)
     tk.Label(network_config_frame, text="Router Gateway IP:", font=('Arial', 12, 'bold'), bg="#ffffff").grid(row=0, column=0, padx=20, pady=15, sticky="w")
     router_entry = tk.Entry(network_config_frame, width=35, font=('Arial', 12))
     router_entry.grid(row=0, column=1, padx=20, pady=15, sticky="we")
@@ -130,7 +133,7 @@ def resize_bg_main(event=None):
         except: pass
     
     if header_window is not None:
-        canvas_main.coords(header_window, new_width // 2, int(new_height * 0.15))
+        canvas_main.coords(header_window, new_width // 2, int(new_height * 0.12)) # تعديل الارتفاع قليلاً
     if button_frame_window is not None:
         canvas_main.coords(button_frame_window, new_width // 2, int(new_height * 0.52))
     if btn_exit is not None:
@@ -139,7 +142,8 @@ def resize_bg_main(event=None):
 if __name__ == "__main__":
     welcome_root = ctk.CTk()
     welcome_root.title("Computer Network Management Dashboard")
-    WINDOW_WIDTH, WINDOW_HEIGHT = 700, 600
+    # زيادة الارتفاع (WINDOW_HEIGHT) لاستيعاب الزر الرابع
+    WINDOW_WIDTH, WINDOW_HEIGHT = 700, 700 
     welcome_root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
     
     bg_image = safe_load_image("background_main.jpg")
@@ -161,25 +165,30 @@ if __name__ == "__main__":
     header_label = ctk.CTkLabel(master=welcome_root, text="Network Management Control Center",
                                font=ctk.CTkFont(family="Arial", size=26, weight="bold"),
                                text_color="black" if bg_image else "#1F6AA5", fg_color="transparent")
-    header_window = canvas_main.create_window(WINDOW_WIDTH // 2, 100, window=header_label)
+    header_window = canvas_main.create_window(WINDOW_WIDTH // 2, 80, window=header_label)
 
     button_frame = ctk.CTkFrame(welcome_root, fg_color="transparent", corner_radius=18, border_color="#1F6AA5", border_width=2)
-    button_frame_window = canvas_main.create_window(WINDOW_WIDTH // 2, 350, window=button_frame)
+    button_frame_window = canvas_main.create_window(WINDOW_WIDTH // 2, 380, window=button_frame)
     
-    # زر DHCP (أخضر)
+    # 1. زر DHCP (أخضر)
     ctk.CTkButton(master=button_frame, text="DHCP Configuration", font=("Arial", 18, "bold"),
                   width=350, height=55, corner_radius=12, fg_color="#0CC43A", hover_color="#09a632",
                   command=lambda: [welcome_root.withdraw(), network_app_root.deiconify()]).pack(pady=(20, 10), padx=30)
 
-    # زر DNS (أزرق)
+    # 2. زر DNS (أزرق)
     ctk.CTkButton(master=button_frame, text="DNS Configuration", font=("Arial", 18, "bold"),
                   width=350, height=55, corner_radius=12, fg_color="#3498db", hover_color="#2980b9",
                   command=open_dns_interface_window).pack(pady=10, padx=30)
 
-    # زر VPN (بنفسجي - الإضافة الجديدة)
+    # 3. زر VPN (بنفسجي)
     ctk.CTkButton(master=button_frame, text="VPN Configuration", font=("Arial", 18, "bold"),
                   width=350, height=55, corner_radius=12, fg_color="#8e44ad", hover_color="#732d91",
-                  command=launch_vpn_interface).pack(pady=(10, 20), padx=30)
+                  command=launch_vpn_interface).pack(pady=10, padx=30)
+
+    # 4. زر VLAN & OSPF الجديد (برتقالي)
+    ctk.CTkButton(master=button_frame, text="VLAN & OSPF Automation", font=("Arial", 18, "bold"),
+                  width=350, height=55, corner_radius=12, fg_color="#d35400", hover_color="#a04000",
+                  command=launch_advanced_automation).pack(pady=(10, 20), padx=30)
 
     # زر الخروج
     btn_exit = ctk.CTkButton(master=welcome_root, text="Exit", font=("Arial", 14, "bold"),

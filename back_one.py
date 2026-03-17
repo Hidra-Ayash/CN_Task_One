@@ -161,3 +161,40 @@ def configure_vpn_task(**kwargs):
     ]
 
     return _connect_and_send_config(device,config_commands)
+
+# أضف هذه الدوال أو حدثها في نهاية ملف back_one.py
+
+def configure_vlan_task(**kwargs):
+    device = kwargs.get('device')
+    vlan_id = kwargs.get('vlan_id')
+    vlan_name = kwargs.get('vlan_name')
+    interface = kwargs.get('interface', 'G0/1')
+    mode = kwargs.get('mode', 'access')
+    
+    config_commands = [
+        f'vlan {vlan_id}',
+        f'name {vlan_name}',
+        'exit',
+        f'interface {interface}',
+        f'switchport mode {mode}',
+        f'switchport access vlan {vlan_id}',
+        'no shutdown',
+        'exit'
+    ]
+    return _connect_and_send_config(device, config_commands)
+
+def configure_ospf_task(**kwargs):
+    device = kwargs.get('device')
+    process_id = kwargs.get('process_id', '1')
+    router_id = kwargs.get('router_id')
+    network_ip = kwargs.get('network_ip')
+    wildcard = kwargs.get('wildcard', '0.0.0.255')
+    area = kwargs.get('area', '0')
+    
+    config_commands = [
+        f'router ospf {process_id}',
+        f'router-id {router_id}',
+        f'network {network_ip} {wildcard} area {area}',
+        'exit'
+    ]
+    return _connect_and_send_config(device, config_commands)
