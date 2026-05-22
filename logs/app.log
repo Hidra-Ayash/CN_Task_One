@@ -1,0 +1,10 @@
+2026-05-22 19:58:14,695 ERROR [root] Netmiko failed for 192.168.32.10. Error: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.32.10:22
+
+
