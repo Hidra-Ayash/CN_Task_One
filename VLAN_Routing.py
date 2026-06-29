@@ -3,6 +3,8 @@ import tkinter as tk
 from tkinter import messagebox
 import backendFinalVersion
 import threading
+import config
+
 # إعداد المظهر العام
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
@@ -38,7 +40,7 @@ def open_automation_window(parent_root=None):
     # إنشاء النافذة الرئيسية
     window = ctk.CTkToplevel() if parent_root else ctk.CTk()
     window.title("Network Automation Queue Manager")
-    window.geometry("1000x760") # زيادة العرض قليلاً لاستيعاب العمود الجديد
+    window.geometry("1000x760")
     window.configure(fg_color=COLORS["bg_main"])
     
     # تمركز النافذة
@@ -151,7 +153,7 @@ def open_automation_window(parent_root=None):
     mode_v.set("access")
     mode_v.grid(row=1, column=4, padx=10, pady=10)
 
-    # زر إضافة VLAN (تعديل columnspan ليشمل العمود الخامس)
+    # زر إضافة VLAN 
     add_vlan_btn = ctk.CTkButton(
         vlan_frame, 
         text="Add VLAN Task",
@@ -164,7 +166,6 @@ def open_automation_window(parent_root=None):
     )
     add_vlan_btn.grid(row=2, column=0, columnspan=5, pady=15)
 
-    # ============ تبويب OSPF ============
  # ============ تبويب OSPF ============
     ospf_frame = ctk.CTkFrame(tab_ospf, fg_color="transparent")
     ospf_frame.pack(expand=True, pady=10)
@@ -197,7 +198,7 @@ def open_automation_window(parent_root=None):
     area_o.set("0")
     area_o.grid(row=1, column=5, padx=8, pady=10)
 
-    # زر إضافة OSPF (توسيع ليشمل 6 أعمدة)
+    # زر إضافة OSPF 
     add_ospf_btn = ctk.CTkButton(
         ospf_frame, 
         text="Add OSPF Task",
@@ -308,7 +309,6 @@ def open_automation_window(parent_root=None):
         queue_listbox.delete(0, 'end')
         for i, t in enumerate(task_queue):
             if t['type'] == "VLAN":
-                # إضافة الـ Mode لنص المهمة في القائمة
                 info = f"  [VLAN]  Switch: {t['ip']}  |  ID: {t['vlan_id']}  |  Mode: {t['mode']}  |  Port: {t['port']}"
             else:
                 info = f"  [OSPF]  Router: {t['ip']}  |  Network: {t['net_ip']}  |  Area: {t['area']}  |  RID: {t['rid']}"
@@ -321,14 +321,13 @@ def open_automation_window(parent_root=None):
         if not ip_v.get() or not vid_v.get():
             messagebox.showwarning("Input Required", "Please enter Switch IP and VLAN ID")
             return
-        # حفظ الـ Mode المختار في القاموس
         task_queue.append({
             "type": "VLAN", 
             "ip": ip_v.get(), 
             "vlan_id": vid_v.get(),
             "vlan_name": vname_v.get() or "Unnamed", 
             "port": port_v.get(),
-            "mode": mode_v.get() # تم تخزين التقنية هنا
+            "mode": mode_v.get() 
         })
         ip_v.delete(0, 'end')
         vid_v.delete(0, 'end')
@@ -344,17 +343,17 @@ def open_automation_window(parent_root=None):
         task_queue.append({
             "type": "OSPF", 
             "ip": ip_o.get(), 
-            "pid": pid_o.get(), # حفظ Process ID
+            "pid": pid_o.get(), 
             "rid": rid_o.get() or "N/A",
             "net_ip": net_o.get(), 
-            "wildcard": wild_o.get() or "0.0.0.255", # حفظ Wildcard مع قيمة افتراضية إذا تُرِك فارغاً
+            "wildcard": wild_o.get() or "0.0.0.255", 
             "area": area_o.get()
         })
         ip_o.delete(0, 'end')
-        pid_o.delete(0, 'end') # تفريغ الحقل
+        pid_o.delete(0, 'end')
         rid_o.delete(0, 'end')
         net_o.delete(0, 'end')
-        wild_o.delete(0, 'end') # تفريغ الحقل
+        wild_o.delete(0, 'end')
         update_listbox()
         messagebox.showinfo("Success", "OSPF task added successfully!")
 
@@ -369,34 +368,38 @@ def open_automation_window(parent_root=None):
 
 
     def run_all():
-        if not task_queue: 
+        if not task_queue:
             messagebox.showinfo("Empty Queue", "No tasks to deploy. Please add tasks first.")
             return
-        
+
         if not messagebox.askyesno("Confirm Deployment", f"Deploy {len(task_queue)} task(s) to the network?"):
             return
-        
-        results = []
-        for t in task_queue:
-            try:
-                if t['type'] == "VLAN":
-                    status = backendFinalVersion.run_vlan_logic(
-                        t['ip'], "admin", "cisco123", "cisco", 
-                        t['vlan_id'], t['vlan_name'], t['port'], t['mode']
-                    )
-                    status = f"Configured as {t['mode']} Successfully" 
-                elif t['type']=="OSPF":
-                     status = backendFinalVersion.run_ospf_logic(
-                        t['ip'], "admin", "cisco123", "cisco", 
-                        t['pid'], t['rid'], t['net_ip'], t['wildcard'], t['area'] # تمرير القيم الديناميكية من الـ Queue
-                    )
-                     status = "OSPF Configured Successfully"
-            except Exception as e:
-                results.append(f"✗ {t['type']} - {t['ip']}: Error - {str(e)}")
-       
-        messagebox.showinfo("Deployment Complete","✔️Added Successfully" )
-        task_queue.clear()
-        update_listbox()
+
+        def worker():
+            results_local = []
+            for t in list(task_queue):
+                try:
+                    if t['type'] == "VLAN":
+                        res = backendFinalVersion.run_vlan_logic(
+                            t['ip'], config.SSH_USER, config.SSH_PASS, config.SSH_SECRET,
+                            t['vlan_id'], t['vlan_name'], t['port'], t['mode']
+                        )
+                        results_local.append(f"VLAN {t['vlan_id']} on {t['ip']}: {res[0] if isinstance(res, list) else res}")
+                    else:
+                        res = backendFinalVersion.run_ospf_logic(
+                            t['ip'], config.SSH_USER, config.SSH_PASS, config.SSH_SECRET,
+                            t['pid'], t['rid'], t['net_ip'], t['wildcard'], t['area']
+                        )
+                        results_local.append(f"OSPF on {t['ip']}: {res}")
+                except Exception as e:
+                    results_local.append(f"✗ {t['type']} - {t.get('ip','unknown')}: Error - {str(e)}")
+
+            # show results and clear queue on main thread
+            window.after(0, lambda: messagebox.showinfo("Deployment Complete", "\n".join(results_local) if results_local else "No results"))
+            task_queue.clear()
+            window.after(0, update_listbox)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     # ربط الأزرار بالدوال
     add_vlan_btn.configure(command=add_vlan)
@@ -408,7 +411,6 @@ def open_automation_window(parent_root=None):
     
     return window
 
-# تشغيل التطبيق مباشرة
 if __name__ == "__main__":
     app = open_automation_window()
     app.mainloop()

@@ -1,6 +1,7 @@
 import platform
-from netmiko import ConnectHandler
-
+import logging
+import os
+import config
 from netmiko import ConnectHandler
 
 class Device:
@@ -19,7 +20,7 @@ def _connect_and_send_config(device, config_commands):
         'username': device.username,
         'password': device.password,
         'secret': device.secret,
-        'session_log': 'netmiko_session.log',
+        'session_log': os.path.join('netmiko_session.log'),
         'global_delay_factor': 3.0,
         'timeout': 20
     }
@@ -35,7 +36,7 @@ def _connect_and_send_config(device, config_commands):
         return {"status": "Success", "output": output}
         
     except Exception as e:
-        print(f"Netmiko failed for {device.host}. Error: {e}")
+        logging.error(f"Netmiko failed for {device.host}. Error: {e}")
         return {"status": "Failure", "output": f"Netmiko Error on {device.host}: {e}"}
 
 def configure_device_task(**kwargs):
@@ -74,15 +75,14 @@ def configure_vlan_task(**kwargs):
     interface = kwargs.get('interface', 'G0/1')
     mode = kwargs.get('mode', 'access')
     
-    print(f"\n[VLAN TASK] Preparing config for VLAN {vlan_id} on {interface}")
+    logging.info(f"[VLAN TASK] Preparing config for VLAN {vlan_id} on {interface}")
     
-    # دمج أمر switchport المبدئي من الكود الثاني مع منطق الـ Trunk من الكود الأول
     config_commands = [
         f'vlan {vlan_id}',
         f'name {vlan_name}',
         'exit',
         f'interface {interface}',
-        'switchport', # يضمن أن المنفذ يعمل كـ Layer 2
+        'switchport',
         f'switchport mode {mode}'
     ]
     
@@ -102,7 +102,7 @@ def configure_ospf_task(**kwargs):
     wildcard = kwargs.get('wildcard', '0.0.0.255')
     area = kwargs.get('area', '0')
     
-    print(f"\n[OSPF TASK] Preparing OSPF {process_id} for network {network_ip}")
+    logging.info(f"[OSPF TASK] Preparing OSPF {process_id} for network {network_ip}")
     
     config_commands = [
         f'router ospf {process_id}',

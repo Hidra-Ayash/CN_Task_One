@@ -1,21 +1,16 @@
 import threading
 import time
+import logging
 from scapy.all import ARP, Ether, srp
 from netmiko import ConnectHandler
 
-import threading
-from scapy.all import ARP, Ether, srp
-from netmiko import ConnectHandler
-import time 
-
-# محاولة استيراد الدوال من back_one مع التعامل مع الأخطاء
 try:
     from back_one import (
         configure_device_task, 
         configure_dhcp_pool_task, 
         configure_dhcp_exclude_task, 
         configure_dhcp_reservation_task, 
-        configure_dns_send_config, # تم التأكد من وجودها
+        configure_dns_send_config,
         Device,
         configure_ospf_task,
         configure_vpn_task
@@ -23,7 +18,7 @@ try:
          
     )
 except ImportError:
-    # Mock classes if back_one is missing (لأغراض الاختبار فقط)
+    # Mock classes 
     class Device:
      def __init__(self, host, username, password, device_type, secret=""): pass
     def configure_dhcp_reservation_task(**kwargs): return {"status": "Mock", "output": "Reservation Done"}
@@ -77,7 +72,7 @@ class Scan:
             elif 'switch' in output_lower or 'vios-l2' in output_lower: return "Switch (Cisco IOS)"
             return "IOS Device (Generic)" 
         except Exception as e: 
-            print(f"SSH failed for {ip}: {e}. Attempting MAC guess.")
+            logging.warning(f"SSH failed for {ip}: {e}. Attempting MAC guess.")
             return _guess_device_type(mac) 
 
     def _process_ip(self, ip, mac):
@@ -99,10 +94,10 @@ class Scan:
                             category = "PCs" 
                     except ValueError: pass
              
-            if ip == "192.168.31.2": category = "Servers"; sys_descr = sys_descr if "Virtual" in sys_descr else "Dedicated Server"
+            if ip == "192.168.31.10": category = "Servers"; sys_descr = sys_descr if "Virtual" in sys_descr else "Dedicated Server"
             if ip in ["192.168.20.30", "192.168.30.11"]: category = "Switches"; sys_descr = "Switch"
             if ip in ["192.168.32.10", "192.168.32.20"]: category = "Routers"; sys_descr = "Router"
-            if ip in ["192.168.30.2", "192.168.20.2", "192.168.20.3", "192.168.20.4"]: category = "PCs"; sys_descr = "PCs"
+            if ip in ["192.168.30.2", "192.168.20.2", "192.168.20.3", "192.168.20.4","192.168.40.2","192.168.40.3","192.168.50.2","192.168.50.3"]: category = "PCs"; sys_descr = "PCs"
 
             device_name = f"{category}{self.counters.get(category, 1)}"
             if category in self.counters: self.counters[category] += 1
@@ -139,7 +134,6 @@ def _get_router_device(scan_results, user, password, secret):
     targets = scan_results.get("Routers", [])
     if not targets: return None
     
-    # الحل: ترتيب المصفوفة حسب عنوان الـ IP لضمان اختيار الراوتر الأول دائماً
     targets_sorted = sorted(targets, key=lambda x: x['ip'])
     dev = targets_sorted[0] 
     
@@ -152,7 +146,6 @@ def run_ip_helper_logic(target_ip, scan_results, ssh_user, ssh_pass, ssh_secret)
         logs.append("No Configurable devices found.")
         return logs
     
-    # الحل: البحث عن الجهاز المستهدف فقط وتجاهل باقي الأجهزة
     target_device = next((dev for dev in targets if dev['ip'] == target_ip), None)
     
     if not target_device:
@@ -224,14 +217,6 @@ def run_dns_config_logic(router_ip, primary_dns, ssh_user, ssh_pass, ssh_secret 
     
     # 1. Determine Target Router IP
     target_ip = router_ip
-    # if not target_ip:
-        # If user didn't provide IP, try to fetch from scan results
-        # router_device_obj = _get_router_device(scan_results, ssh_user, ssh_pass, ssh_secret)
-        # if router_device_obj:
-            # target_ip = router_device_obj.host
-    
-    # if not target_ip:
-    #     return ["Failed: No Router IP provided and none found in scan results."]
 
     # # 2. Create Device Object
     device_model = Device(host=target_ip, username=ssh_user, password=ssh_pass, device_type="cisco_ios", secret=ssh_secret)

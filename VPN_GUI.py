@@ -1,22 +1,21 @@
 import tkinter as tk
 from tkinter import messagebox
 import threading
-import backendFinalVersion  # الربط مع منطق العمل
+import backendFinalVersion  
+import config
 
 class VPNInterface:
     def __init__(self, parent_root):
         self.parent_root = parent_root
         
-        # إخفاء النافذة الرئيسية (First_GUI)
         self.parent_root.withdraw()
 
         # إنشاء نافذة الـ VPN
         self.window = tk.Toplevel()
         self.window.title("VPN Site-to-Site Configuration")
         self.window.geometry("900x650")
-        self.window.configure(bg="#f0f2f5") # لون خلفية هادئ
+        self.window.configure(bg="#f0f2f5")
         
-        # عند إغلاق النافذة من علامة X نعود للرئيسية
         self.window.protocol("WM_DELETE_WINDOW", self.go_back)
 
         self.setup_ui()
@@ -56,7 +55,6 @@ class VPNInterface:
             )
             if "Key" in label_text: entry.config(show="*")
             entry.grid(row=i, column=1, pady=15, padx=20, sticky="w")
-            # إضافة نص توضيحي خفيف (اختياري)
             entry.insert(0, "") 
             self.entries.append(entry)
 
@@ -90,14 +88,19 @@ class VPNInterface:
         
         def task():
             try:
-                # استدعاء الجسر في الباك إند (تأكد من وجود الدالة في backendFinalVersion)
                 logs = backendFinalVersion.run_vpn_logic_bridge(
                     vals[0], vals[1], vals[2], vals[3], vals[4],
-                    "admin", "cisco123", "cisco"
+                    config.SSH_USER, config.SSH_PASS, config.SSH_SECRET
                 )
-                messagebox.showinfo("Configuration Result", "\n".join(logs))
+                try:
+                    self.window.after(0, lambda: messagebox.showinfo("Configuration Result", "\n".join(logs)))
+                except Exception:
+                    pass
             except Exception as e:
-                messagebox.showerror("Critical Error", f"Failed to connect: {str(e)}")
+                try:
+                    self.window.after(0, lambda: messagebox.showerror("Critical Error", f"Failed to connect: {str(e)}"))
+                except Exception:
+                    pass
             finally:
                 self.deploy_btn.config(state="normal", text="🚀 Deploy VPN", bg="#27ae60")
 
@@ -105,7 +108,7 @@ class VPNInterface:
 
     def go_back(self):
         self.window.destroy()
-        self.parent_root.deiconify() # إعادة إظهار الصفحة الرئيسية
+        self.parent_root.deiconify()
 
 def open_vpn_window(root):
     return VPNInterface(root)

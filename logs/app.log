@@ -8,3 +8,56 @@ Common causes of this problem are:
 Device settings: cisco_ios 192.168.32.10:22
 
 
+2026-05-22 20:32:07,756 INFO [root] [VLAN TASK] Preparing config for VLAN 10 on Gi0/0
+2026-05-22 20:32:17,760 ERROR [root] Netmiko failed for 192.168.20.1. Error: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.20.1:22
+
+
+2026-05-22 20:35:13,563 INFO [root] [OSPF TASK] Preparing OSPF 1 for network 192.168.20.0
+2026-05-22 20:35:23,583 ERROR [root] Netmiko failed for 192.168.32.10. Error: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.32.10:22
+
+
+2026-05-22 20:35:23,583 INFO [root] [OSPF TASK] Preparing OSPF 1 for network 192.168.30.0
+2026-05-22 20:35:23,591 ERROR [root] Netmiko failed for 192.168.32.20. Error: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.32.20:22
+
+
+2026-05-22 20:37:06,936 ERROR [root] Netmiko failed for 192.168.32.10. Error: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.32.10:22
+
+
+2026-05-22 20:37:06,938 ERROR [root] Netmiko failed for 192.168.32.20. Error: TCP connection to device failed.
+
+Common causes of this problem are:
+1. Incorrect hostname or IP address.
+2. Wrong TCP port.
+3. Intermediate firewall blocking access.
+
+Device settings: cisco_ios 192.168.32.20:22
+
+

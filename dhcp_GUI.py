@@ -1,17 +1,16 @@
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import threading
-import backendFinalVersion # نفترض أن هذا الملف موجود
+import backendFinalVersion 
+import config
+import ipaddress
+import re
 
-# ملاحظة: يجب أن تكون هذه المتغيرات عامة (Global) أو يتم تمريرها للدالة
-# لكي يعمل منطق الباك إند (backendFinalVersion) بشكل صحيح.
-
-# بيانات الدخول يتم جلبها من الواجهة الرئيسية
-SSH_USER = "admin"
-SSH_PASS = "cisco123"
-SSH_SECRET = "cisco"
-last_scan_results = {} # نتائج الفحص الأخيرة يتم جلبها من الواجهة الرئيسية
-
+# Login credentials (centralized)
+SSH_USER = getattr(config, 'SSH_USER', 'admin')
+SSH_PASS = getattr(config, 'SSH_PASS', 'cisco123')
+SSH_SECRET = getattr(config, 'SSH_SECRET', 'cisco')
+last_scan_results = {} 
 
 def run_dhcp_gui(root_window, back_callback, scan_results):
     """
@@ -27,82 +26,131 @@ def run_dhcp_gui(root_window, back_callback, scan_results):
     dhcp_win.geometry("600x650")
     dhcp_win.configure(bg="#eef5ff")
     
-    # دالة زر الرجوع
     def go_back():
         dhcp_win.destroy()  # إغلاق نافذة DHCP
-        back_callback()   # استدعاء دالة إظهار القائمة الرئيسية
+        back_callback()   
+        
 
     # -----------------------------------------------------------------
-    # دالة Log (مبسطة لتعرض الرسائل في الواجهة الرئيسية)
+    # دالة Log (لعرض الرسائل في الواجهة الرئيسية)
     def log_and_display(message):
-        # في بيئة الإنتاج، يجب أن يتم إرسال هذا إلى log في الواجهة الرئيسية
-        print(f"[DHCP LOG]: {message}")
-        messagebox.showinfo("DHCP Action", message)
+        # Log messages only; final dialogs are shown by wrapper functions
+        import logging
+        logging.info(f"[DHCP LOG]: {message}")
 
-    # دالة wrapper لـ Pool (نسخة معدلة من الكود الأصلي)
     def _thread_wrapper_pool(params):
         try:
-            # هنا يجب استدعاء دالة log_and_display
             logs = backendFinalVersion.run_dhcp_pool_logic(
                 params, last_scan_results,
                 SSH_USER, SSH_PASS, SSH_SECRET
             )
+            import logging
             for msg in logs:
-                log_and_display(msg)
-        except Exception as e:
-            log_and_display(f"Pool Error: {e}")
+                logging.info(msg)
 
-    # دالة add_exclusion (نسخة معدلة من الكود الأصلي)
+            joined = "\n".join(logs) if isinstance(logs, list) else str(logs)
+            lower = joined.lower()
+            if any(k in lower for k in ("error", "failure", "failed", "no routers", "exception")):
+                dhcp_win.after(0, lambda: messagebox.showerror("DHCP Pool", f"Failed to apply DHCP pool"))
+            else:
+                dhcp_win.after(0, lambda: messagebox.showinfo("DHCP Pool", f"DHCP pool applied successfully"))
+
+        except Exception as e:
+            dhcp_win.after(0, lambda: messagebox.showerror("DHCP Pool", f"Exception: {e}"))
+
     def add_exclusion(e_start, e_end, listbox):
         start = e_start.get().strip()
         end = e_end.get().strip()
         if not start:
+            dhcp_win.after(0, lambda: messagebox.showwarning("Input Required", "Please enter start IP."))
             return
+
+        # Validate IP addresses
+        try:
+            ipaddress.ip_address(start)
+            if end:
+                ipaddress.ip_address(end)
+        except Exception:
+            dhcp_win.after(0, lambda: messagebox.showwarning("Invalid Input", "Please enter valid IP addresses."))
+            return
+
         listbox.insert(tk.END, f"{start} - {end}")
 
         threading.Thread(
             target=_thread_wrapper_exclude,
-            args=(start, end)
+            args=(start, end),
+            daemon=True
         ).start()
 
-    # دالة wrapper لـ Exclude (نسخة معدلة من الكود الأصلي)
+
     def _thread_wrapper_exclude(start, end):
         try:
             logs = backendFinalVersion.run_exclude_logic(
                 start, end, last_scan_results,
                 SSH_USER, SSH_PASS, SSH_SECRET
             )
+            import logging
             for msg in logs:
-                log_and_display(msg)
-        except Exception as e:
-            log_and_display(f"Exclude Error: {e}")
+                logging.info(msg)
 
-    # دالة add_reservation (نسخة معدلة من الكود الأصلي)
+            joined = "\n".join(logs) if isinstance(logs, list) else str(logs)
+            lower = joined.lower()
+            if any(k in lower for k in ("error", "failure", "failed", "exception")):
+                dhcp_win.after(0, lambda: messagebox.showerror("DHCP Exclusion", f"Failed to add exclusion:\n{joined}"))
+            else:
+                dhcp_win.after(0, lambda: messagebox.showinfo("DHCP Exclusion", f"Exclusion added successfully.\n{joined}"))
+
+        except Exception as e:
+            dhcp_win.after(0, lambda: messagebox.showerror("DHCP Exclusion", f"Exception: {e}"))
+
     def add_reservation(e_ip, e_mac, listbox):
         ip = e_ip.get().strip()
         mac = e_mac.get().strip()
 
         if not ip or not mac:
+            dhcp_win.after(0, lambda: messagebox.showwarning("Input Required", "Please enter IP and MAC address."))
+            return
+
+        # Validate IP
+        try:
+            ipaddress.ip_address(ip)
+        except Exception:
+            dhcp_win.after(0, lambda: messagebox.showwarning("Invalid Input", "Please enter a valid IP address."))
+            return
+
+        # Validate MAC
+        cleaned_mac = mac.replace(':', '').replace('-', '').lower()
+        if len(cleaned_mac) != 12 or not all(c in '0123456789abcdef' for c in cleaned_mac):
+            dhcp_win.after(0, lambda: messagebox.showwarning("Invalid Input", "Please enter a valid MAC address."))
             return
 
         listbox.insert(tk.END, f"IP: {ip} | MAC: {mac}")
 
         threading.Thread(
             target=_thread_wrapper_reserve,
-            args=(ip, mac)
+            args=(ip, mac),
+            daemon=True
         ).start()
 
-    # دالة wrapper لـ Reserve (نسخة معدلة من الكود الأصلي)
     def _thread_wrapper_reserve(ip, mac):
         try:
             logs = backendFinalVersion.run_reservation_logic(
                 ip, mac, last_scan_results,
                 SSH_USER, SSH_PASS, SSH_SECRET
             )
+            import logging
             for msg in logs:
-                log_and_display(msg)
+                logging.info(msg)
+
+            joined = "\n".join(logs) if isinstance(logs, list) else str(logs)
+            lower = joined.lower()
+            if any(k in lower for k in ("error", "failure", "failed", "exception")):
+                dhcp_win.after(0, lambda: messagebox.showerror("DHCP Reservation", f"Failed to add reservation"))
+            else:
+                dhcp_win.after(0, lambda: messagebox.showinfo("DHCP Reservation", f"Reservation added successfully."))
+
         except Exception as e:
-            log_and_display(f"Reservation Error: {e}")
+            dhcp_win.after(0, lambda: messagebox.showerror("DHCP Reservation", f"Exception: {e}"))
 
     # -----------------------------------------------------------------
     # =================== تصميم الواجهة (من كودك الأصلي) ===================
@@ -132,16 +180,39 @@ def run_dhcp_gui(root_window, back_callback, scan_results):
     e_dns = tk.Entry(pool_frame); e_dns.grid(row=1, column=3, padx=5, pady=2)
     e_dns.insert(0, "8.8.8.8")
 
+    def apply_pool_click():
+        pool_name = e_name.get().strip()
+        network = e_net.get().strip()
+        default_router = e_gw.get().strip()
+        dns_server = e_dns.get().strip()
+
+        if not pool_name or not network or not default_router or not dns_server:
+            dhcp_win.after(0, lambda: messagebox.showwarning("Input Required", "Please fill all DHCP Pool fields."))
+            return
+
+        try:
+            ipaddress.ip_address(network)
+            ipaddress.ip_address(default_router)
+            ipaddress.ip_address(dns_server)
+        except Exception:
+            dhcp_win.after(0, lambda: messagebox.showwarning("Invalid Input", "Please enter valid IPv4 addresses."))
+            return
+
+        threading.Thread(
+            target=lambda: _thread_wrapper_pool({
+                'pool_name': pool_name,
+                'network': network,
+                'netmask': "255.255.255.0",
+                'default_router': default_router,
+                'dns_server': dns_server
+            }),
+            daemon=True
+        ).start()
+
     tk.Button(
         pool_frame, text="Apply Pool Config",
         bg="orange", fg="black",
-        command=lambda: _thread_wrapper_pool({
-            'pool_name': e_name.get(),
-            'network': e_net.get(),
-            'netmask': "255.255.255.0",
-            'default_router': e_gw.get(),
-            'dns_server': e_dns.get()
-        })
+        command=apply_pool_click
     ).grid(row=2, column=0, columnspan=4, pady=10, sticky="ew")
 
     # =================== EXCLUSIONS ===================
@@ -192,7 +263,6 @@ def run_dhcp_gui(root_window, back_callback, scan_results):
         command=lambda: add_reservation(e_res_ip, e_res_mac, lb_res)
     ).grid(row=2, column=0, columnspan=3, pady=5, sticky='ew')
 
-    # 5. زر الرجوع (صغير جداً وفي الزاوية اليمنى السفلية)
     btn_back = tk.Button(
         dhcp_win, text="← Back", 
         command=go_back,
@@ -202,9 +272,6 @@ def run_dhcp_gui(root_window, back_callback, scan_results):
         width=8,
         height=1
     )
-    # استخدام place لوضعه في الزاوية
     btn_back.place(relx=0.98, rely=0.98, anchor="se") 
     
-    dhcp_win.transient(root_window) # لجعل النافذة الفرعية تظهر فوق الرئيسية
-
-# ملاحظة: تم حذف قسم الـ main من هذا الملف
+    dhcp_win.transient(root_window) 

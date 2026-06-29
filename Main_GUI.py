@@ -2,33 +2,31 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import threading
 import backendFinalVersion
-import queue  # استيراد مكتبة الطابور للتعامل الآمن مع الخيوط
+import queue 
+import config
+import ipaddress
 
 class NetworkApp:
-    def __init__(self, root, back_callback): 
-        self.root = root
+    def __init__(self, psroot, back_callback): 
+        self.root = psroot
         self.back_to_welcome = back_callback
         self.last_scan_results = {}
         
-        # 1. إنشاء طابور الرسائل GUI Queue
         self.gui_queue = queue.Queue()
 
-        # Login Data
-        self.SSH_USER = "admin"
-        self.SSH_PASS = "cisco123"
-        self.SSH_SECRET = "cisco"
+        # Login Data (centralized)
+        self.SSH_USER = getattr(config, 'SSH_USER', 'admin')
+        self.SSH_PASS = getattr(config, 'SSH_PASS', 'cisco123')
+        self.SSH_SECRET = getattr(config, 'SSH_SECRET', 'cisco')
         
         # ************************************************
-        # الإصلاح: تعريف self.running أولاً
         self.running = True
         # ************************************************
 
         self.setup_gui()
         
-        # 2. بدء مراقبة الطابور بعد تعريف self.running
         self.process_queue() 
         
-        # عند إغلاق النافذة، نضمن عدم استدعاء after مجدداً
         self.root.bind("<Destroy>", self.on_destroy)
 
     def on_destroy(self, event):
@@ -50,14 +48,11 @@ class NetworkApp:
 
         try:
             while True:
-                # جلب المهمة من الطابور دون انتظار
                 task = self.gui_queue.get_nowait()
-                # تنفيذ المهمة (وهي عبارة عن دالة lambda)
                 task()
         except queue.Empty:
             pass
         
-        # إعادة جدولة الفحص فقط إذا كانت self.running لا تزال True
         self.root.after(100, self.process_queue)
 
     def run_on_main_thread(self, func):
@@ -65,7 +60,7 @@ class NetworkApp:
         self.gui_queue.put(func)
 
     # ---------------------------------------------------------
-    # GUI SETUP (تم إضافة زر الرجوع هنا)
+    # GUI SETUP (  زر الرجوع )
     # ---------------------------------------------------------
     def setup_gui(self):
         self.root.title("Network Management - GNS3 Edition")
@@ -181,7 +176,7 @@ class NetworkApp:
             font=('Arial', 11, 'bold'), 
             bg="#cc3333", 
             fg="white",
-            command=self.back_to_welcome # دالة العودة التي تم تمريرها
+            command=self.back_to_welcome 
         ).pack(side="right", padx=8, pady=15)
     # ---------------------------------------------------------
     # LOG OUTPUT 
@@ -355,16 +350,39 @@ class NetworkApp:
         e_dns = tk.Entry(pool_frame); e_dns.grid(row=1, column=3)
         e_dns.insert(0, "8.8.8.8")
 
+        def apply_pool_click():
+            pool_name = e_name.get().strip()
+            network = e_net.get().strip()
+            default_router = e_gw.get().strip()
+            dns_server = e_dns.get().strip()
+
+            if not pool_name or not network or not default_router or not dns_server:
+                self.run_on_main_thread(lambda: messagebox.showwarning("Input Required", "Please fill all DHCP Pool fields."))
+                return
+
+            try:
+                ipaddress.ip_address(network)
+                ipaddress.ip_address(default_router)
+                ipaddress.ip_address(dns_server)
+            except Exception:
+                self.run_on_main_thread(lambda: messagebox.showwarning("Invalid Input", "Please enter valid IPv4 addresses."))
+                return
+
+            threading.Thread(
+                target=lambda: self._thread_wrapper_pool({
+                    'pool_name': pool_name,
+                    'network': network,
+                    'netmask': "255.255.255.0",
+                    'default_router': default_router,
+                    'dns_server': dns_server
+                }),
+                daemon=True
+            ).start()
+
         tk.Button(
             pool_frame, text="Apply Pool Config",
             bg="orange", fg="black",
-            command=lambda: self._thread_wrapper_pool({
-                'pool_name': e_name.get(),
-                'network': e_net.get(),
-                'netmask': "255.255.255.0",
-                'default_router': e_gw.get(),
-                'dns_server': e_dns.get()
-            })
+            command=apply_pool_click
         ).grid(row=2, column=0, columnspan=4, pady=10, sticky="ew")
 
         # =================== EXCLUSIONS ===================
@@ -453,6 +471,13 @@ class NetworkApp:
             )
             for msg in logs:
                 self.log(msg)
+
+            joined = "\n".join(logs) if isinstance(logs, list) else str(logs)
+            lower = joined.lower()
+            if any(k in lower for k in ("error", "failure", "failed", "no routers", "exception")):
+                self.run_on_main_thread(lambda: messagebox.showerror("DHCP Pool", f"Failed to apply DHCP pool:\n{joined}"))
+            else:
+                self.run_on_main_thread(lambda: messagebox.showinfo("DHCP Pool", f"DHCP pool applied successfully.\n{joined}"))
         except Exception as e:
             self.log(f"Pool Error: {e}")
 
@@ -464,6 +489,13 @@ class NetworkApp:
             )
             for msg in logs:
                 self.log(msg)
+
+            joined = "\n".join(logs) if isinstance(logs, list) else str(logs)
+            lower = joined.lower()
+            if any(k in lower for k in ("error", "failure", "failed", "exception")):
+                self.run_on_main_thread(lambda: messagebox.showerror("DHCP Exclusion", f"Failed to add exclusion:\n{joined}"))
+            else:
+                self.run_on_main_thread(lambda: messagebox.showinfo("DHCP Exclusion", f"Exclusion added successfully.\n{joined}"))
         except Exception as e:
             self.log(f"Exclude Error: {e}")
 
@@ -475,6 +507,13 @@ class NetworkApp:
             )
             for msg in logs:
                 self.log(msg)
+
+            joined = "\n".join(logs) if isinstance(logs, list) else str(logs)
+            lower = joined.lower()
+            if any(k in lower for k in ("error", "failure", "failed", "exception")):
+                self.run_on_main_thread(lambda: messagebox.showerror("DHCP Reservation", f"Failed to add reservation:\n{joined}"))
+            else:
+                self.run_on_main_thread(lambda: messagebox.showinfo("DHCP Reservation", f"Reservation added successfully.\n{joined}"))
         except Exception as e:
             self.log(f"Reservation Error: {e}")
 
@@ -485,7 +524,8 @@ class NetworkApp:
 if __name__ == "__main__":
     root = tk.Tk()
     def dummy_callback():
-        print("Back button pressed in standalone mode.")
+        import logging
+        logging.info("Back button pressed in standalone mode.")
 
     app = NetworkApp(root, back_callback=dummy_callback)
     root.mainloop()
